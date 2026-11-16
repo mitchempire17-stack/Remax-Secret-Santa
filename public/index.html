@@ -34,7 +34,7 @@ details{margin-top:6px}summary{cursor:pointer;color:var(--mute);font-size:14px;m
 </main>
 <script>
 (function(){
-var S={players:[],drawn:false,drawAt:null,ready:false},skew=0,revealed=null,msg='',ok=false,adminKey='',isAdmin=false;
+var S={players:[],drawn:false,drawAt:null,ready:false},skew=0,revealed=null,revGender=null,msg='',ok=false,adminKey='',isAdmin=false;
 try{adminKey=sessionStorage.getItem('ss-key')||''}catch(e){}
 function $(i){return document.getElementById(i)}
 function esc(s){return String(s).replace(/[&<>"]/g,function(c){return{'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]})}
@@ -50,12 +50,12 @@ async function api(p,body){
   catch(e){throw new Error(e.message||'Network problem')}
 }
 async function load(){try{var d=await api('state');skew=d.now-Date.now();S=d;if(!typing())render()}catch(e){}}
-function typing(){var a=document.activeElement;return a&&/^(nick|pin|rpin|who|dt|key)$/.test(a.id)}
+function typing(){var a=document.activeElement;return a&&/^(nick|gender|pin|rpin|who|dt|key)$/.test(a.id)}
 function render(){
   var h='';
   if(S.ready&&!revealed)h+='<div class="min" style="background:var(--green)">🔔 Draw day! Your match is ready. Enter your PIN below.</div>';
-  if(revealed)h+='<div class="card reveal"><div>You are the Secret Santa for</div><div class="big">'+esc(revealed)+'</div><p>Gift them something thoughtful worth <b>at least Sh 1,500</b>. Keep it secret! 🤫</p><button class="alt" id="hide">Hide</button></div>';
-  if(!S.drawn)h+='<div class="card"><h2>Join the draw</h2><input id="nick" maxlength="20" placeholder="Your nickname" autocomplete="off"><input id="pin" inputmode="numeric" maxlength="4" placeholder="Choose a 4-digit PIN" autocomplete="off"><p class="msg'+(ok?' ok':'')+'" id="msg">'+esc(msg)+'</p><button id="joinBtn">Add me</button><p class="note">Your PIN keeps your match private. No email needed.</p></div>';
+  if(revealed)h+='<div class="card reveal"><div>You are the Secret Santa for</div><div class="big">'+esc(revealed)+'</div>'+(revGender?'<div class="note">Gender: '+esc(revGender)+' (to help you pick a gift)</div>':'')+'<p>Gift them something thoughtful worth <b>at least Sh 1,500</b>. Keep it secret! 🤫</p><button class="alt" id="hide">Hide</button></div>';
+  if(!S.drawn)h+='<div class="card"><h2>Join the draw</h2><input id="nick" maxlength="20" placeholder="Your nickname" autocomplete="off"><select id="gender"><option value="">Select your gender</option><option>Male</option><option>Female</option></select><input id="pin" inputmode="numeric" maxlength="4" placeholder="Choose a 4-digit PIN" autocomplete="off"><p class="msg'+(ok?' ok':'')+'" id="msg">'+esc(msg)+'</p><button id="joinBtn">Add me</button><p class="note">Your PIN keeps your match private. No email needed.</p></div>';
   h+='<div class="card"><h2>Participants ('+S.players.length+')</h2>'+(S.players.length?'<div class="chips">'+S.players.map(function(n){return'<span class="chip">'+esc(n)+'</span>'}).join('')+'</div>':'<p class="note">Nobody has joined yet.</p>');
   if(!S.drawn)h+='<p class="note">'+(S.drawAt?'The draw is on <b>'+fmt(S.drawAt)+'</b> ('+left(S.drawAt)+' to go). Your match will show up here then.':'The organiser will run the draw when everyone has joined.')+'</p>';
   h+='</div>';
@@ -77,12 +77,12 @@ function render(){
 function am(t,g){var m=$('msg2');if(m){m.textContent=t;m.className='msg'+(g?' ok':'')}}
 async function join(){
   var nick=$('nick').value.trim(),pin=$('pin').value.trim();$('joinBtn').disabled=true;
-  try{await api('join',{nick:nick,pin:pin});try{localStorage.setItem('ss-me',nick)}catch(e){}msg='You’re in, '+nick+'! Remember your PIN.';ok=true;await load();render()}
+  try{await api('join',{nick:nick,gender:$('gender').value,pin:pin});try{localStorage.setItem('ss-me',nick)}catch(e){}msg='You’re in, '+nick+'! Remember your PIN.';ok=true;await load();render()}
   catch(e){say(e.message);$('joinBtn').disabled=false}
 }
 async function show(){
   var nick=$('who').value,pin=$('rpin').value.trim();if(!nick||!pin)return say('Pick your nickname and enter your PIN.');
-  try{var d=await api('reveal',{nick:nick,pin:pin});try{localStorage.setItem('ss-me',nick)}catch(e){}revealed=d.match;msg='';render()}catch(e){say(e.message)}
+  try{var d=await api('reveal',{nick:nick,pin:pin});try{localStorage.setItem('ss-me',nick)}catch(e){}revealed=d.match;revGender=d.gender;msg='';render()}catch(e){say(e.message)}
 }
 async function unlock(){
   var k=$('key').value;try{await api('admin-check',{key:k});adminKey=k;isAdmin=true;try{sessionStorage.setItem('ss-key',k)}catch(e){}render()}catch(e){am(e.message)}

@@ -26,13 +26,14 @@ export default async (req) => {
   }
 
   if (route === "join") {
-    const nick = String(b.nick || "").trim(), pin = String(b.pin || "");
+    const nick = String(b.nick || "").trim(), pin = String(b.pin || ""), gender = String(b.gender || "");
     if (!nick || nick.length > 20) return json({ error: "Enter a nickname (up to 20 characters)." }, 400);
+    if (!["Male", "Female"].includes(gender)) return json({ error: "Please select your gender." }, 400);
     if (!/^\d{4}$/.test(pin)) return json({ error: "Choose a 4-digit PIN." }, 400);
     if (meta.pairs) return json({ error: "The draw is done, so sign-ups are closed." }, 409);
     const key = "p/" + slug(nick);
     if (await s.get(key)) return json({ error: "That nickname is taken. Try another." }, 409);
-    await s.setJSON(key, { nick, pin: hash(nick, pin), at: Date.now(), fails: 0, lock: 0 });
+    await s.setJSON(key, { nick, gender, pin: hash(nick, pin), at: Date.now(), fails: 0, lock: 0 });
     return json({ ok: true });
   }
 
@@ -49,7 +50,9 @@ export default async (req) => {
       return json({ error: "Wrong PIN. Try again." }, 401);
     }
     if (p.fails) { p.fails = 0; await s.setJSON(key, p); }
-    return json({ match: meta.pairs[p.nick] || null });
+    const match = meta.pairs[p.nick] || null;
+    const mp = match ? await s.get("p/" + slug(match), { type: "json" }) : null;
+    return json({ match, gender: (mp && mp.gender) || null });
   }
 
   // organiser routes
